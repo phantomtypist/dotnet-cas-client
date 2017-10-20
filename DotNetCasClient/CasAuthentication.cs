@@ -1,8 +1,8 @@
 ﻿/*
- * Licensed to Jasig under one or more contributor license
+ * Licensed to Apereo under one or more contributor license
  * agreements. See the NOTICE file distributed with this work
  * for additional information regarding copyright ownership.
- * Jasig licenses this file to you under the Apache License,
+ * Apereo licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a
  * copy of the License at:
@@ -283,7 +283,17 @@ namespace DotNetCasClient
                         else
                         {
                             if (String.Compare(CasClientConfiguration.CACHE_SERVICE_TICKET_MANAGER, serviceTicketManagerProvider) == 0)
+                            {
+#if NET20 || NET35
+                                // Use the service ticket manager that implements an in-memory cache supported by .NET 2.0/3.5.
                                 serviceTicketManager = new CacheServiceTicketManager();
+#endif
+
+#if NET40 || NET45
+                                // Use the service ticket manager that implements an in-memory cache supported by .NET 4.x.
+                                serviceTicketManager = new MemoryCacheServiceTicketManager();
+#endif
+                            }
                             else
                             {
                                 // the service ticket manager  is not recognized, let's try to get it using Reflection then
@@ -308,7 +318,17 @@ namespace DotNetCasClient
                         else
                         {
                             if (String.Compare(CasClientConfiguration.CACHE_PROXY_TICKET_MANAGER, proxyTicketManagerProvider) == 0)
+                            {
+#if NET20 || NET35
+                                // Use the proxy ticket manager that implements an in-memory cache supported by .NET 2.0/3.5.
                                 proxyTicketManager = new CacheProxyTicketManager();
+#endif
+
+#if NET40 || NET45
+                                // Use the proxy ticket manager that implements an in-memory cache supported by .NET 4.x.
+                                proxyTicketManager = new MemoryCacheProxyTicketManager();
+#endif
+                            }
                             else
                             {
                                 // the proxy ticket manager  is not recognized, let's try to get it using Reflection then
@@ -676,7 +696,7 @@ namespace DotNetCasClient
         /// configured to maintain session state on the server.  In the case of 
         /// ASP.NET web applications using DotNetCasClient, this requires defining a 
         /// serviceTicketManager.  The configuration for other client types (Java, 
-        /// PHP) varies based on the client implementation.  Consult the Jasig wiki
+        /// PHP) varies based on the client implementation.  Consult the Apereo wiki
         /// for more details.
         /// </summary>
         public static void SingleSignOut()
@@ -1054,7 +1074,7 @@ namespace DotNetCasClient
 
         /// <summary>
         /// Encrypts a FormsAuthenticationTicket in an HttpCookie (using 
-        /// GetAuthCookie) and includes it in the response.
+        /// GetAuthCookie) and includes it in both the request and the response.
         /// </summary>
         /// <param name="clientTicket">The FormsAuthenticationTicket to encode</param>
         public static void SetAuthCookie(FormsAuthenticationTicket clientTicket)
@@ -1067,7 +1087,13 @@ namespace DotNetCasClient
                 throw new HttpException("Connection not secure while creating secure cookie");
             }
 
-            current.Response.Cookies.Add(GetAuthCookie(clientTicket));
+            // Obtain the forms authentication cookie from the ticket
+            HttpCookie authCookie = GetAuthCookie(clientTicket);
+            // Clear the previous cookie from the current HTTP request
+            current.Request.Cookies.Remove(FormsAuthentication.FormsCookieName);
+            // Store the new cookie in both the request and response objects
+            current.Request.Cookies.Add(authCookie);
+            current.Response.Cookies.Add(authCookie);
         }
 
         /// <summary>
@@ -1248,9 +1274,9 @@ namespace DotNetCasClient
             protoLogger.Error(message);
             throw new InvalidOperationException(message);
         }
-        #endregion
+#endregion
 
-        #region Properties
+#region Properties
         /// <summary>
         /// Name of ticket validator that validates CAS tickets using a 
         /// particular protocol.  Valid values are Cas10, Cas20, and Saml11.
@@ -1344,7 +1370,7 @@ namespace DotNetCasClient
         }
 
         /// <summary>
-        /// Enable CAS gateway feature, see http://www.jasig.org/cas/protocol section 2.1.1.
+        /// Enable CAS gateway feature, see https://apereo.github.io/cas/5.1.x/protocol/CAS-Protocol-Specification.html section 2.1.1.
         /// Default is false.
         /// </summary>
         public static bool Gateway
@@ -1601,6 +1627,6 @@ namespace DotNetCasClient
             }
         }
 
-        #endregion
+#endregion
     }
 }
